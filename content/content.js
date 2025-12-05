@@ -180,6 +180,16 @@ function initializeSpeechRecognition() {
     }
   };
 
+  recognition.onabort = () => {
+    console.log('Speech recognition aborted');
+    isRecording = false;
+    // Notify widget that recording stopped
+    window.postMessage({
+      action: 'recordingStopped',
+      source: 'speakify-content'
+    }, '*');
+  };
+
   return true;
 }
 
@@ -251,13 +261,31 @@ window.addEventListener('message', (event) => {
         }
       } else if (action === 'stopRecording') {
         if (recognition && isRecording) {
-          recognition.stop();
-          window.postMessage({
-            action: action + 'Response',
-            success: true,
-            source: 'speakify-content'
-          }, '*');
+          try {
+            recognition.stop();
+            isRecording = false; // Immediately set flag to false
+            window.postMessage({
+              action: action + 'Response',
+              success: true,
+              source: 'speakify-content'
+            }, '*');
+            // Also notify that recording stopped
+            window.postMessage({
+              action: 'recordingStopped',
+              source: 'speakify-content'
+            }, '*');
+          } catch (error) {
+            console.error('Error stopping recognition:', error);
+            isRecording = false;
+            window.postMessage({
+              action: action + 'Response',
+              success: false,
+              error: error.message || 'Failed to stop recording',
+              source: 'speakify-content'
+            }, '*');
+          }
         } else {
+          isRecording = false; // Ensure flag is false
           window.postMessage({
             action: action + 'Response',
             success: false,
@@ -267,11 +295,12 @@ window.addEventListener('message', (event) => {
         }
       }
     } else if (action === 'refineText') {
-      // Handle refine text via background script
+      // Handle refine text via background script with custom system prompt
       chrome.runtime.sendMessage({
         action: 'refineText',
         text: event.data.text,
-        apiKey: event.data.apiKey
+        apiKey: event.data.apiKey,
+        systemPrompt: event.data.systemPrompt
       }, (response) => {
         if (chrome.runtime.lastError) {
           window.postMessage({
@@ -287,6 +316,55 @@ window.addEventListener('message', (event) => {
           success: response?.success || false,
           refinedText: response?.refinedText,
           error: response?.error,
+          source: 'speakify-content'
+        }, '*');
+      });
+    } else if (action === 'getSettings') {
+      // Get settings from storage
+      chrome.storage.local.get(['speakifySettings'], (result) => {
+        window.postMessage({
+          action: 'settingsResponse',
+          settings: result.speakifySettings || null,
+          source: 'speakify-content'
+        }, '*');
+      });
+    } else if (action === 'saveSettings') {
+      // Save settings to storage
+      // This completely replaces the previous settings, so all changes are saved together
+      // No conflicts because we're using a single key and replacing it entirely
+      chrome.storage.local.set({ speakifySettings: event.data.settings }, () => {
+        if (chrome.runtime.lastError) {
+          console.error('Error saving settings:', chrome.runtime.lastError);
+          window.postMessage({
+            action: 'settingsResponse',
+            settings: null,
+            error: chrome.runtime.lastError.message,
+            source: 'speakify-content'
+          }, '*');
+        } else {
+          console.log('Settings saved successfully:', event.data.settings);
+          window.postMessage({
+            action: 'settingsResponse',
+            settings: event.data.settings,
+            source: 'speakify-content'
+          }, '*');
+        }
+      });
+    } else if (action === 'getHistory') {
+      // Get history from storage
+      chrome.storage.local.get(['speakifyHistory'], (result) => {
+        window.postMessage({
+          action: 'historyResponse',
+          history: result.speakifyHistory || [],
+          source: 'speakify-content'
+        }, '*');
+      });
+    } else if (action === 'saveHistory') {
+      // Save history to storage
+      chrome.storage.local.set({ speakifyHistory: event.data.history }, () => {
+        window.postMessage({
+          action: 'historyResponse',
+          history: event.data.history,
           source: 'speakify-content'
         }, '*');
       });

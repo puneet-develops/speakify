@@ -3,7 +3,7 @@
  */
 
 const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
-const SYSTEM_PROMPT = "You are a helpful assistant that refines and improves user input text. Make it clear, concise, and professional while preserving the original intent. Return only the refined text without any additional commentary or explanation.";
+const SYSTEM_PROMPT = "You are a timesheet assistant for a backend developer. Your task is to refine and format voice-transcribed text into professional, concise timesheet entries. The output should be: 1) Clear and professional, 2) Concise (typically 10-30 words), 3) Focused on technical work, tasks, and accomplishments, 4) Suitable for daily timesheet logging. Remove filler words, fix grammar, and make it sound professional. Return ONLY the refined text without any additional commentary, explanations, or formatting marks.";
 
 /**
  * Refine text using Perplexity API
@@ -40,7 +40,7 @@ async function refineTextWithPerplexity(text, apiKey) {
           }
         ],
         temperature: 0.2,
-        max_tokens: 1000
+        max_tokens: 150
       })
     });
 
