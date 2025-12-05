@@ -78,7 +78,7 @@
         </div>
         <div class="flowlog-header-controls">
           <button class="flowlog-icon-btn" id="flowlog-settings-btn" title="Settings">⚙️</button>
-          <button class="flowlog-icon-btn" id="flowlog-history-btn" title="History">🕐</button>
+          <button class="flowlog-icon-btn" id="flowlog-close-btn" title="Close Extension">⚠️</button>
           <button class="flowlog-icon-btn" id="flowlog-toggle-btn" title="Minimize">−</button>
         </div>
       </div>
@@ -337,6 +337,26 @@
       });
     }
 
+    // Close extension button
+    const closeBtn = document.getElementById('flowlog-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to close the extension?')) {
+          // Stop recording if active
+          if (isRecording) {
+            window.postMessage({
+              action: 'stopRecording',
+              source: 'speakify-widget'
+            }, '*');
+          }
+          // Remove the widget from the DOM
+          if (widget) {
+            widget.remove();
+          }
+        }
+      });
+    }
+
     // Back button
     const backBtn = document.getElementById('flowlog-back-btn');
     if (backBtn) {
@@ -371,7 +391,9 @@
     // Add to log button
     const addToLogBtn = document.getElementById('flowlog-add-to-log-btn');
     if (addToLogBtn) {
-      addToLogBtn.addEventListener('click', addToHistory);
+      addToLogBtn.addEventListener('click', () => {
+        addToHistory();
+      });
     }
 
     // Clear transcript
@@ -523,9 +545,17 @@
     const useTodayBtn = document.getElementById('flowlog-use-today-btn');
     if (useTodayBtn) {
       useTodayBtn.addEventListener('click', () => {
-        const refinedText = document.getElementById('flowlog-refined-output').value;
+        const refinedOutput = document.getElementById('flowlog-refined-output');
+        const refinedText = refinedOutput ? refinedOutput.value.trim() : '';
         if (refinedText) {
-          fillInputBox(refinedText);
+          // Copy to clipboard
+          navigator.clipboard.writeText(refinedText).then(() => {
+            showStatus('Copied to clipboard', 'success');
+          }).catch(() => {
+            showStatus('Failed to copy to clipboard', 'error');
+          });
+        } else {
+          showStatus('No text to use', 'error');
         }
       });
     }
@@ -548,6 +578,27 @@
         const refinedText = document.getElementById('flowlog-refined-output').value;
         navigator.clipboard.writeText(refinedText);
         showStatus('Copied to clipboard', 'success');
+      });
+    }
+
+    // Edit refined output
+    const editRefined = document.getElementById('flowlog-edit-refined');
+    if (editRefined) {
+      editRefined.addEventListener('click', () => {
+        const refinedOutput = document.getElementById('flowlog-refined-output');
+        if (refinedOutput) {
+          const isReadonly = refinedOutput.hasAttribute('readonly');
+          if (isReadonly) {
+            refinedOutput.removeAttribute('readonly');
+            editRefined.textContent = '✓';
+            editRefined.title = 'Done editing';
+            refinedOutput.focus();
+          } else {
+            refinedOutput.setAttribute('readonly', '');
+            editRefined.textContent = '✏️';
+            editRefined.title = 'Edit';
+          }
+        }
       });
     }
 
@@ -763,7 +814,15 @@
   }
 
   function addToHistory(text = null) {
-    const textToAdd = text || document.getElementById('flowlog-transcript').value.trim();
+    // Get text - ensure it's a string, not an event object
+    let textToAdd;
+    if (text !== null && typeof text === 'string') {
+      textToAdd = text.trim();
+    } else {
+      const transcriptEl = document.getElementById('flowlog-transcript');
+      textToAdd = transcriptEl ? transcriptEl.value.trim() : '';
+    }
+    
     if (!textToAdd) {
       showStatus('No text to add', 'error');
       return;
@@ -859,9 +918,16 @@
   }
 
   function saveHistory() {
+    // Clean history to ensure only serializable data is sent
+    const cleanHistory = history.map(entry => ({
+      date: entry.date,
+      text: typeof entry.text === 'string' ? entry.text : String(entry.text || ''),
+      tags: Array.isArray(entry.tags) ? [...entry.tags] : []
+    }));
+    
     window.postMessage({
       action: 'saveHistory',
-      history: history,
+      history: cleanHistory,
       source: 'speakify-widget'
     }, '*');
   }
@@ -1144,9 +1210,14 @@ function getWidgetCSS() {
       width: 480px;
       max-width: calc(100vw - 40px);
       max-height: 90vh;
-      background: #1a1a1a;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      background: rgba(26, 26, 26, 0.7);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                  0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                  0 1px 0 rgba(255, 255, 255, 0.1) inset;
       z-index: 999999;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       font-size: 14px;
@@ -1160,9 +1231,10 @@ function getWidgetCSS() {
     .flowlog-widget.collapsed {
       width: 200px;
       max-width: calc(100vw - 40px);
-      height: auto;
-      min-height: auto;
-      max-height: none;
+      height: auto !important;
+      min-height: auto !important;
+      max-height: none !important;
+      padding: 0 !important;
     }
     @media (max-width: 768px) {
       .flowlog-widget {
@@ -1192,21 +1264,35 @@ function getWidgetCSS() {
     }
     .flowlog-widget.collapsed .flowlog-content {
       display: none !important;
+      height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
     }
     .flowlog-widget.collapsed .flowlog-tabs {
       display: none !important;
+      height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
     }
     .flowlog-widget.collapsed .flowlog-resize-handle {
       display: none !important;
+      height: 0 !important;
+      width: 0 !important;
+    }
+    .flowlog-widget.collapsed > *:not(.flowlog-header) {
+      display: none !important;
     }
     .flowlog-header {
-      background: #252525;
+      background: rgba(37, 37, 37, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       padding: 12px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       cursor: move;
+      border-radius: 20px 20px 0 0;
     }
     @media (max-width: 480px) {
       .flowlog-header {
@@ -1231,21 +1317,25 @@ function getWidgetCSS() {
       gap: 8px;
     }
     .flowlog-icon-btn {
-      background: transparent;
-      border: none;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       color: #e0e0e0;
       width: 28px;
       height: 28px;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 16px;
-      transition: background 0.2s;
+      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
     .flowlog-icon-btn:hover {
-      background: #333;
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
     }
     .flowlog-header-nav {
       display: flex;
@@ -1253,22 +1343,27 @@ function getWidgetCSS() {
       gap: 12px;
     }
     .flowlog-back-btn {
-      background: transparent;
-      border: none;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       color: #e0e0e0;
       font-size: 18px;
       cursor: pointer;
       padding: 4px 8px;
-      border-radius: 6px;
-      transition: background 0.2s;
+      border-radius: 8px;
+      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
     .flowlog-back-btn:hover {
-      background: #333;
+      background: rgba(51, 51, 51, 0.7);
+      border-color: rgba(255, 255, 255, 0.2);
     }
     .flowlog-tabs {
       display: flex;
-      background: #252525;
-      border-bottom: 1px solid #333;
+      background: rgba(37, 37, 37, 0.4);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .flowlog-tab {
       flex: 1;
@@ -1297,12 +1392,16 @@ function getWidgetCSS() {
     }
     .flowlog-tab:hover {
       color: #e0e0e0;
-      background: #2a2a2a;
+      background: rgba(42, 42, 42, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
     .flowlog-tab.active {
       color: #4ade80;
-      border-bottom-color: #4ade80;
-      background: #1a1a1a;
+      border-bottom-color: rgba(74, 222, 128, 0.8);
+      background: rgba(26, 26, 26, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
     .flowlog-tab-icon {
       font-size: 16px;
@@ -1311,7 +1410,9 @@ function getWidgetCSS() {
       flex: 1;
       overflow-y: auto;
       padding: 20px;
-      background: #1a1a1a;
+      background: rgba(26, 26, 26, 0.3);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
     @media (max-width: 768px) {
       .flowlog-content {
@@ -1339,8 +1440,10 @@ function getWidgetCSS() {
       width: 120px;
       height: 120px;
       border-radius: 50%;
-      border: none;
-      background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.9), rgba(34, 197, 94, 0.9));
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
       color: white;
       font-size: 48px;
       cursor: pointer;
@@ -1348,7 +1451,9 @@ function getWidgetCSS() {
       align-items: center;
       justify-content: center;
       transition: all 0.3s;
-      box-shadow: 0 4px 20px rgba(74, 222, 128, 0.3);
+      box-shadow: 0 8px 32px rgba(74, 222, 128, 0.4),
+                  0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+                  0 2px 0 rgba(255, 255, 255, 0.2) inset;
     }
     @media (max-width: 480px) {
       .flowlog-mic-button {
@@ -1359,16 +1464,24 @@ function getWidgetCSS() {
     }
     .flowlog-mic-button:hover:not(:disabled) {
       transform: scale(1.05);
-      box-shadow: 0 6px 30px rgba(74, 222, 128, 0.4);
+      box-shadow: 0 12px 40px rgba(74, 222, 128, 0.5),
+                  0 0 0 1px rgba(255, 255, 255, 0.2) inset,
+                  0 2px 0 rgba(255, 255, 255, 0.3) inset;
+      border-color: rgba(255, 255, 255, 0.3);
     }
     .flowlog-mic-button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      background: rgba(74, 222, 128, 0.3);
     }
     .flowlog-mic-button.recording {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.9));
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
       animation: flowlog-pulse 1.5s infinite;
-      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
+      box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4),
+                  0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+                  0 2px 0 rgba(255, 255, 255, 0.2) inset;
     }
     @keyframes flowlog-pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -1405,31 +1518,37 @@ function getWidgetCSS() {
       color: #888;
     }
     .flowlog-icon-btn-small {
-      background: transparent;
-      border: none;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       color: #888;
       cursor: pointer;
       font-size: 14px;
       padding: 4px;
-      border-radius: 4px;
+      border-radius: 6px;
       transition: all 0.2s;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
     .flowlog-icon-btn-small:hover {
-      background: #333;
+      background: rgba(51, 51, 51, 0.7);
+      border-color: rgba(255, 255, 255, 0.2);
       color: #e0e0e0;
     }
     .flowlog-textarea {
       width: 100%;
       min-height: 100px;
-      background: #252525;
-      border: 1px solid #333;
-      border-radius: 8px;
+      background: rgba(37, 37, 37, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
       padding: 12px;
       color: #e0e0e0;
       font-size: 13px;
       font-family: inherit;
       resize: vertical;
       box-sizing: border-box;
+      transition: all 0.2s;
     }
     @media (max-width: 480px) {
       .flowlog-textarea {
@@ -1453,10 +1572,14 @@ function getWidgetCSS() {
     }
     .flowlog-textarea:focus {
       outline: none;
-      border-color: #4ade80;
+      border-color: rgba(74, 222, 128, 0.5);
+      background: rgba(37, 37, 37, 0.7);
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
     }
     .flowlog-textarea[readonly] {
-      background: #1f1f1f;
+      background: rgba(31, 31, 31, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       color: #aaa;
     }
     .flowlog-actions {
@@ -1483,19 +1606,31 @@ function getWidgetCSS() {
       cursor: not-allowed;
     }
     .flowlog-btn-primary {
-      background: #4ade80;
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.9), rgba(34, 197, 94, 0.9));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(74, 222, 128, 0.3);
       color: #1a1a1a;
+      box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3),
+                  0 0 0 1px rgba(255, 255, 255, 0.1) inset;
     }
     .flowlog-btn-primary:hover:not(:disabled) {
-      background: #22c55e;
+      background: linear-gradient(135deg, rgba(74, 222, 128, 1), rgba(34, 197, 94, 1));
       transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(74, 222, 128, 0.4),
+                  0 0 0 1px rgba(255, 255, 255, 0.2) inset;
     }
     .flowlog-btn-secondary {
-      background: #333;
+      background: rgba(51, 51, 51, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       color: #e0e0e0;
     }
     .flowlog-btn-secondary:hover:not(:disabled) {
-      background: #404040;
+      background: rgba(64, 64, 64, 0.7);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
     }
     .flowlog-btn-icon {
       padding: 8px;
@@ -1533,22 +1668,28 @@ function getWidgetCSS() {
     }
     .flowlog-tone-btn {
       padding: 8px 12px;
-      background: #252525;
-      border: 1px solid #333;
-      border-radius: 6px;
+      background: rgba(37, 37, 37, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
       color: #e0e0e0;
       font-size: 12px;
       cursor: pointer;
       transition: all 0.2s;
     }
     .flowlog-tone-btn:hover {
-      background: #333;
-      border-color: #4ade80;
+      background: rgba(51, 51, 51, 0.7);
+      border-color: rgba(74, 222, 128, 0.5);
+      transform: translateY(-1px);
     }
     .flowlog-tone-btn.active {
-      background: #1f3a1f;
-      border-color: #4ade80;
+      background: rgba(31, 58, 31, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-color: rgba(74, 222, 128, 0.6);
       color: #4ade80;
+      box-shadow: 0 0 15px rgba(74, 222, 128, 0.2);
     }
     .flowlog-magic-section {
       margin-top: 16px;
@@ -1633,10 +1774,19 @@ function getWidgetCSS() {
       padding: 40px 20px;
     }
     .flowlog-history-entry {
-      background: #252525;
-      border: 1px solid #333;
-      border-radius: 8px;
+      background: rgba(37, 37, 37, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
       padding: 16px;
+      transition: all 0.2s;
+    }
+    .flowlog-history-entry:hover {
+      background: rgba(37, 37, 37, 0.7);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
     .flowlog-entry-header {
       display: flex;
@@ -1668,7 +1818,10 @@ function getWidgetCSS() {
       flex-wrap: wrap;
     }
     .flowlog-tag {
-      background: #333;
+      background: rgba(51, 51, 51, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(74, 222, 128, 0.2);
       color: #4ade80;
       padding: 4px 10px;
       border-radius: 12px;
@@ -1726,9 +1879,11 @@ function getWidgetCSS() {
       }
     }
     .flowlog-role-card {
-      background: #252525;
-      border: 2px solid #333;
-      border-radius: 8px;
+      background: rgba(37, 37, 37, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
       padding: 16px;
       cursor: pointer;
       display: flex;
@@ -1737,12 +1892,18 @@ function getWidgetCSS() {
       transition: all 0.2s;
     }
     .flowlog-role-card:hover {
-      border-color: #4ade80;
-      background: #2a2a2a;
+      border-color: rgba(74, 222, 128, 0.5);
+      background: rgba(42, 42, 42, 0.7);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     }
     .flowlog-role-card.active {
-      border-color: #4ade80;
-      background: #1f3a1f;
+      border-color: rgba(74, 222, 128, 0.8);
+      background: rgba(31, 58, 31, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(74, 222, 128, 0.3),
+                  0 0 0 1px rgba(74, 222, 128, 0.2) inset;
     }
     .flowlog-role-icon {
       font-size: 24px;
@@ -1763,34 +1924,44 @@ function getWidgetCSS() {
     .flowlog-select {
       width: 100%;
       padding: 10px 12px;
-      background: #252525;
-      border: 1px solid #333;
-      border-radius: 8px;
+      background: rgba(37, 37, 37, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
       color: #e0e0e0;
       font-size: 13px;
       font-family: inherit;
       cursor: pointer;
+      transition: all 0.2s;
     }
     .flowlog-select:focus {
       outline: none;
-      border-color: #4ade80;
+      border-color: rgba(74, 222, 128, 0.5);
+      background: rgba(37, 37, 37, 0.7);
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
     }
     .flowlog-textarea-large {
       width: 100%;
       min-height: 120px;
-      background: #252525;
-      border: 1px solid #333;
-      border-radius: 8px;
+      background: rgba(37, 37, 37, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
       padding: 12px;
       color: #e0e0e0;
       font-size: 13px;
       font-family: inherit;
       resize: vertical;
       box-sizing: border-box;
+      transition: all 0.2s;
     }
     .flowlog-textarea-large:focus {
       outline: none;
-      border-color: #4ade80;
+      border-color: rgba(74, 222, 128, 0.5);
+      background: rgba(37, 37, 37, 0.7);
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
     }
     .flowlog-char-count {
       text-align: right;
@@ -1806,17 +1977,22 @@ function getWidgetCSS() {
     .flowlog-input {
       flex: 1;
       padding: 10px 12px;
-      background: #252525;
-      border: 1px solid #333;
-      border-radius: 8px;
+      background: rgba(37, 37, 37, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
       color: #e0e0e0;
       font-size: 13px;
       font-family: inherit;
       box-sizing: border-box;
+      transition: all 0.2s;
     }
     .flowlog-input:focus {
       outline: none;
-      border-color: #4ade80;
+      border-color: rgba(74, 222, 128, 0.5);
+      background: rgba(37, 37, 37, 0.7);
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
     }
     .flowlog-hint-small {
       font-size: 11px;
@@ -1834,7 +2010,10 @@ function getWidgetCSS() {
       margin-top: 12px;
     }
     .flowlog-tag-item {
-      background: #333;
+      background: rgba(51, 51, 51, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       color: #e0e0e0;
       padding: 6px 12px;
       border-radius: 16px;
@@ -1895,19 +2074,28 @@ function getWidgetCSS() {
       transform: translateX(-50%) translateY(0);
     }
     .flowlog-status-message.success {
-      background: #1f3a1f;
+      background: rgba(31, 58, 31, 0.8);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
       color: #4ade80;
-      border: 1px solid #22c55e;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      box-shadow: 0 8px 32px rgba(74, 222, 128, 0.3);
     }
     .flowlog-status-message.error {
-      background: #3a1f1f;
+      background: rgba(58, 31, 31, 0.8);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
       color: #ef4444;
-      border: 1px solid #dc2626;
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      box-shadow: 0 8px 32px rgba(239, 68, 68, 0.3);
     }
     .flowlog-status-message.info {
-      background: #1f2a3a;
+      background: rgba(31, 42, 58, 0.8);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
       color: #60a5fa;
-      border: 1px solid #3b82f6;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      box-shadow: 0 8px 32px rgba(96, 165, 250, 0.3);
     }
     .flowlog-content::-webkit-scrollbar {
       width: 6px;
