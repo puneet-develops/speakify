@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate Speakify Icons</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #667eea;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      margin: 10px;
+      display: block;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    .icon-preview {
+      display: inline-block;
+      margin: 10px;
+      text-align: center;
+    }
+    .icon-preview label {
+      display: block;
+      margin-top: 5px;
+      font-weight: bold;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎤 Speakify Icon Generator</h1>
+    <p>Click the buttons below to generate and download PNG icons for the Chrome extension.</p>
+    
+    <div class="icon-preview">
+      <canvas id="icon16" width="16" height="16"></canvas>
+      <label>16x16</label>
+      <button onclick="generateIcon(16)">Generate & Download 16x16</button>
+    </div>
+    
+    <div class="icon-preview">
+      <canvas id="icon48" width="48" height="48"></canvas>
+      <label>48x48</label>
+      <button onclick="generateIcon(48)">Generate & Download 48x48</button>
+    </div>
+    
+    <div class="icon-preview">
+      <canvas id="icon128" width="128" height="128"></canvas>
+      <label>128x128</label>
+      <button onclick="generateIcon(128)">Generate & Download 128x128</button>
+    </div>
+    
+    <div style="margin-top: 30px;">
+      <button onclick="generateAll()" style="background: #28a745; font-size: 18px; padding: 15px 30px;">
+        Generate All Icons
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function drawIcon(canvas, size) {
+      const ctx = canvas.getContext('2d');
+      const centerX = size / 2;
+      const centerY = size / 2;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, size, size);
+      
+      // Create gradient background
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#667eea');
+      gradient.addColorStop(1, '#764ba2');
+      
+      // Draw rounded rectangle background
+      const radius = size * 0.15;
+      ctx.fillStyle = gradient;
+      roundRect(ctx, 0, 0, size, size, radius);
+      ctx.fill();
+      
+      // Draw microphone
+      ctx.strokeStyle = 'white';
+      ctx.fillStyle = 'white';
+      ctx.lineWidth = Math.max(1, size / 16);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      // Microphone stand
+      const micTopY = size * 0.25;
+      const micBottomY = size * 0.7;
+      const micWidth = size * 0.15;
+      
+      ctx.beginPath();
+      ctx.moveTo(centerX, micTopY);
+      ctx.lineTo(centerX, micBottomY);
+      ctx.stroke();
+      
+      // Microphone head (triangle)
+      ctx.beginPath();
+      ctx.moveTo(centerX - micWidth, micTopY + size * 0.1);
+      ctx.lineTo(centerX, micTopY);
+      ctx.lineTo(centerX + micWidth, micTopY + size * 0.1);
+      ctx.stroke();
+      
+      // Microphone base (circle)
+      const baseRadius = size * 0.1;
+      ctx.beginPath();
+      ctx.arc(centerX, micBottomY, baseRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Sound waves (for larger icons)
+      if (size >= 48) {
+        ctx.globalAlpha = 0.6;
+        const waveRadius = baseRadius + size * 0.15;
+        ctx.beginPath();
+        ctx.arc(centerX, micBottomY, waveRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        if (size >= 128) {
+          ctx.beginPath();
+          ctx.arc(centerX, micBottomY, waveRadius + size * 0.1, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1.0;
+      }
+      
+      // AI sparkle (for larger icons)
+      if (size >= 48) {
+        const sparkleX = size * 0.75;
+        const sparkleY = size * 0.3;
+        const sparkleSize = size / 16;
+        
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = Math.max(1, size / 40);
+        ctx.beginPath();
+        ctx.moveTo(sparkleX, sparkleY - sparkleSize * 2);
+        ctx.lineTo(sparkleX, sparkleY + sparkleSize * 2);
+        ctx.moveTo(sparkleX - sparkleSize * 2, sparkleY);
+        ctx.lineTo(sparkleX + sparkleSize * 2, sparkleY);
+        ctx.stroke();
+      }
+    }
+    
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+    
+    function generateIcon(size) {
+      const canvas = document.getElementById(`icon${size}`);
+      drawIcon(canvas, size);
+      
+      // Download
+      canvas.toBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `icon${size}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
+    
+    function generateAll() {
+      generateIcon(16);
+      setTimeout(() => generateIcon(48), 500);
+      setTimeout(() => generateIcon(128), 1000);
+    }
+    
+    // Generate previews on load
+    window.onload = function() {
+      drawIcon(document.getElementById('icon16'), 16);
+      drawIcon(document.getElementById('icon48'), 48);
+      drawIcon(document.getElementById('icon128'), 128);
+    };
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,50 @@
+<div id="speakify-widget" class="speakify-widget">
+  <div class="speakify-header">
+    <h3>🎤 Speakify</h3>
+    <button id="speakify-toggle" class="speakify-toggle">−</button>
+  </div>
+  <div id="speakify-content" class="speakify-content">
+    <!-- API Key Section -->
+    <div class="speakify-section">
+      <label for="speakify-apiKey">Perplexity API Key:</label>
+      <input type="password" id="speakify-apiKey" placeholder="Enter your API key">
+      <button id="speakify-saveApiKey" class="speakify-btn speakify-btn-primary">Save</button>
+      <div id="speakify-apiKeyStatus" class="speakify-status"></div>
+    </div>
+
+    <!-- Voice Recording Section -->
+    <div class="speakify-section">
+      <label>Voice Recording:</label>
+      <div class="speakify-recording-controls">
+        <button id="speakify-micButton" class="speakify-btn speakify-btn-mic" disabled>
+          <span class="speakify-mic-icon">🎤</span>
+          <span id="speakify-micButtonText">Start Recording</span>
+        </button>
+        <div id="speakify-recordingStatus" class="speakify-status"></div>
+      </div>
+    </div>
+
+    <!-- Transcribed Text Section -->
+    <div class="speakify-section" id="speakify-transcriptionSection" style="display: none;">
+      <label>Transcribed Text:</label>
+      <textarea id="speakify-transcribedText" readonly rows="3"></textarea>
+      <button id="speakify-refineButton" class="speakify-btn speakify-btn-secondary" disabled>
+        Refine with AI
+      </button>
+    </div>
+
+    <!-- Refined Text Section -->
+    <div class="speakify-section" id="speakify-refinedSection" style="display: none;">
+      <label>Refined Text:</label>
+      <textarea id="speakify-refinedText" readonly rows="3"></textarea>
+      <div class="speakify-action-buttons">
+        <button id="speakify-fillInputButton" class="speakify-btn speakify-btn-primary">Fill Input</button>
+        <button id="speakify-submitButton" class="speakify-btn speakify-btn-success">Submit</button>
+      </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="speakify-statusMessage" class="speakify-status-message"></div>
+  </div>
+</div>
+

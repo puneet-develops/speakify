@@ -1,0 +1,29 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad128" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="128" height="128" rx="20" fill="url(#grad128)"/>
+  <!-- Microphone -->
+  <path d="M64 28 L64 76 M48 44 L64 28 L80 44" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  <circle cx="64" cy="88" r="12" stroke="white" stroke-width="6" fill="none" filter="url(#glow)"/>
+  <path d="M40 88 L32 100 M88 88 L96 100" stroke="white" stroke-width="4" stroke-linecap="round" filter="url(#glow)"/>
+  <!-- Sound waves -->
+  <path d="M32 64 Q28 60 24 64 Q28 68 32 64" stroke="white" stroke-width="3" fill="none" opacity="0.7"/>
+  <path d="M96 64 Q100 60 104 64 Q100 68 96 64" stroke="white" stroke-width="3" fill="none" opacity="0.7"/>
+  <!-- AI Sparkles -->
+  <circle cx="88" cy="40" r="4" fill="white" opacity="0.9"/>
+  <path d="M88 32 L88 48 M80 40 L96 40" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+  <circle cx="40" cy="40" r="3" fill="white" opacity="0.7"/>
+  <path d="M40 35 L40 45 M35 40 L45 40" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+</svg>
+
